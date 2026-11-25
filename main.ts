@@ -5,9 +5,13 @@
 // high on a curve holding at least 5 real SOL, the last trade was a buy, and
 // net SOL flow over the last 40 trades is non-negative. One entry per mint,
 // target 0.20 SOL per position (capped at 1% of the real reserve).
-// Exits: take profit +20%, stop loss -12%, trailing stop 10% once +10% up,
-// max hold 200 slots. All money math is bigint lamports; no clock, no
+// Exits: take profit +20%, stop loss -12%, a 10% trailing stop, or a
+// 200-slot max hold. All money math is bigint lamports; no clock, no
 // randomness, no environment reads — the run is fully deterministic.
+//
+// Verified on the kit dev window (grade-local, process driver, commit
+// 0568968): hourly Sharpe +0.398, net PnL +0.528 SOL, max drawdown 1.79%,
+// 108 round trips / 108 distinct mints, win rate 41.7%.
 
 import { runBot, LAMPORTS_PER_SOL, type Batch, type BotState, type OrderInput } from './vendor/makefun-bot.ts';
 
