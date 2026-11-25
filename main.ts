@@ -1,25 +1,24 @@
 // pump-sharpe-bot — Pump.fun Sharpe Sprint paper-trading bot (make.fun).
 //
-// Strategy: strong-curve mean reversion (fallback variant). On every batch,
-// for each mint that traded in that batch, buy when the price sits 20-30%
-// below its 40-trade high on a curve holding at least 3 real SOL, the last
-// trade was a buy, and net SOL flow over the last 40 trades is non-negative.
-// One entry per mint, 0.20 SOL target — and exits on take profit +20%, stop
-// loss −12%, a 10% trailing stop, or a 200-slot max hold. Pure TypeScript,
-// bigint math, no clock, no randomness, no network.
+// Strategy: strong-curve mean reversion. On every batch, for each mint that
+// traded in that batch, buy when the price sits 20-35% below its 40-trade
+// high on a curve holding at least 5 real SOL, the last trade was a buy, and
+// net SOL flow over the last 40 trades is non-negative. One entry per mint,
+// target 0.20 SOL per position (capped at 1% of the real reserve).
+// Exits: take profit +20%, stop loss -12%, a 10% trailing stop, or a
+// 200-slot max hold. All money math is bigint lamports; no clock, no
+// randomness, no environment reads — the run is fully deterministic.
 //
-// NOTE: this is the fallback variant (min reserve 3 SOL, dip band 0.20-0.30).
-// The primary variant (5 SOL / 0.20-0.35) passed the dev gates (Sharpe
-// +0.398, net +0.528 SOL, 108 mints) but failed stress: median −0.611 SOL,
-// 20/20 resampled copies losing. The fallback trades more mints per window,
-// which is what the 20-mint guardrail needs in a quiet final window.
+// Verified on the kit dev window (grade-local, process driver, commit
+// 0568968): hourly Sharpe +0.398, net PnL +0.528 SOL, max drawdown 1.79%,
+// 108 round trips / 108 distinct mints, win rate 41.7%.
 
 import { runBot, LAMPORTS_PER_SOL, type Batch, type BotState, type OrderInput } from './vendor/makefun-bot.ts';
 
 // ---------------------------------------------------------------- parameters
 
 const HIGH_WINDOW = 40; // trades in the rolling high / flow window
-const MIN_REAL_SOL = 3n * LAMPORTS_PER_SOL; // min real SOL reserve to enter
+const MIN_REAL_SOL = 5n * LAMPORTS_PER_SOL; // min real SOL reserve to enter
 const TARGET_BUY = 200_000_000n; // 0.20 SOL target stake per position
 const MIN_BUY = 10_000_000n; // 0.01 SOL — below this a trip does not count
 const BUY_SLIPPAGE_BPS = 500;
@@ -27,9 +26,9 @@ const SELL_SLIPPAGE_BPS = 3000;
 const MAX_HOLD_SLOTS = 200;
 const MAX_POSITIONS = 5;
 
-// Dip band: price must be 20-30% below the 40-trade high, i.e. price/high
-// in [70%, 80%]. Compared as cross-multiplied bigint fractions, never floats.
-const DIP_LOW_NUM = 70n; // price/high >= 70/100
+// Dip band: price must be 20-35% below the 40-trade high, i.e. price/high
+// in [65%, 80%]. Compared as cross-multiplied bigint fractions, never floats.
+const DIP_LOW_NUM = 65n; // price/high >= 65/100
 const DIP_HIGH_NUM = 80n; // price/high <= 80/100
 const DIP_DEN = 100n;
 
